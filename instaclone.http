@@ -1,0 +1,6 @@
+@instaclone_HostAddress = http://localhost:5147
+
+GET {{instaclone_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
