@@ -1,12 +1,14 @@
-﻿namespace instaclone.models
+﻿using System.ComponentModel.DataAnnotations.Schema;
+
+namespace instaclone.models
 {
     public class Like
     {
-        public int LikeID { get; set; }
-        public int UserID { get; set; }
-        public int PostID { get; set; }
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        public int Id { get; set; }
 
-        public UserDetails user { get; set; }
-        public Post post { get; set; }
+
+        public InstaCloneUser UserDetail { get; set; }
+        public Post Post { get; set; }
     }
 }
