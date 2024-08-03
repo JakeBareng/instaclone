@@ -53,12 +53,12 @@ namespace instaclone.Controllers
         {
 
             var post = await _context.Posts.FindAsync(id);
-            var user = _context.UserDetails.Find(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            var user = _context.InstaCloneUser.Find(User.FindFirstValue(ClaimTypes.NameIdentifier));
 
             if (post == null || user == null)
                 return BadRequest();
 
-            if (!post.UserDetail.Id.Equals(user.Id))
+            if (!post.InstaCloneUser.Id.Equals(user.Id))
                 return Unauthorized();
 
 
@@ -93,7 +93,7 @@ namespace instaclone.Controllers
         [HttpPost]
         public async Task<ActionResult<Post>> PostPost(PostRequest postRequest)
         {
-            var user = _context.UserDetails.Find(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            var user = _context.InstaCloneUser.Find(User.FindFirstValue(ClaimTypes.NameIdentifier));
 
             if (user == null)
             {
@@ -106,7 +106,7 @@ namespace instaclone.Controllers
                 Comments = new List<Comment>(),
                 FileAddress = postRequest.fileAddress,
                 Title = postRequest.title,
-                UserDetail = user,
+                InstaCloneUser = user,
             };
 
 
@@ -121,12 +121,12 @@ namespace instaclone.Controllers
         public async Task<IActionResult> DeletePost(int id)
         {
             var post = await _context.Posts.FindAsync(id);
-            var user = _context.UserDetails.Find(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            var user = _context.InstaCloneUser.Find(User.FindFirstValue(ClaimTypes.NameIdentifier));
 
             if (post == null || user == null)
                 return BadRequest();
 
-            if (!post.UserDetail.Id.Equals(user.Id))
+            if (!post.InstaCloneUser.Id.Equals(user.Id))
                 return Unauthorized();
 
             _context.Posts.Remove(post);

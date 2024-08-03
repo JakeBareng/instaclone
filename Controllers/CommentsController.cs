@@ -7,11 +7,14 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using instaclone.Data;
 using instaclone.models;
+using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 
 namespace instaclone.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class CommentsController : ControllerBase
     {
         private readonly SocialMediaContext _context;
@@ -21,41 +24,62 @@ namespace instaclone.Controllers
             _context = context;
         }
 
-        // GET: api/Comments
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<Comment>>> GetComments()
-        {
-            return await _context.Comments.ToListAsync();
-        }
 
         // GET: api/Comments/5
-        [HttpGet("{id}")]
-        public async Task<ActionResult<Comment>> GetComment(int id)
+        //[HttpGet("{id}")]
+        //public async Task<ActionResult<Comment>> GetComment(int id)
+        //{
+        //    var comment = await _context.Comments.FindAsync(id);
+
+        //    if (comment == null)
+        //    {
+        //        return NotFound();
+        //    }
+
+        //    return comment;
+        //}
+
+
+
+
+        // GET: api/Comments/Post/5
+        // Get all comments for a post
+        [HttpGet("Post/{id}")]
+        public async Task<ActionResult<IEnumerable<Comment>>> GetCommentsForPost(int id)
         {
-            var comment = await _context.Comments.FindAsync(id);
-
-            if (comment == null)
-            {
-                return NotFound();
-            }
-
-            return comment;
+            return await _context.Comments.Where(c => c.PostId == id).ToListAsync();
         }
+
 
         // PUT: api/Comments/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutComment(int id, Comment comment)
+        public async Task<IActionResult> PutComment(int id, CommentRequest commentRequest)
         {
-            if (id != comment.Id)
+
+            var comment = await _context.Comments.FindAsync(id);
+            var user = await _context.InstaCloneUser.FindAsync(User.FindFirstValue(ClaimTypes.NameIdentifier));
+
+
+            if (comment == null || user == null)
             {
-                return BadRequest();
+                return NotFound();
             }
 
+            if (!comment.InstaCloneUser.Id.Equals(user.Id))
+            {
+                return Unauthorized();
+            }
+
+            comment.Content = commentRequest.Content;
+
+
+            // Update the comment content
             _context.Entry(comment).State = EntityState.Modified;
 
             try
             {
+                // Update the comment content
                 await _context.SaveChangesAsync();
             }
             catch (DbUpdateConcurrencyException)
@@ -73,11 +97,27 @@ namespace instaclone.Controllers
             return NoContent();
         }
 
-        // POST: api/Comments
+        // POST: api/Comments/Post/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPost]
-        public async Task<ActionResult<Comment>> PostComment(Comment comment)
+        [HttpPost("Post/{id}")]
+        public async Task<ActionResult<Comment>> PostComment(int postId ,CommentRequest commentRequest)
         {
+            
+            var user = await _context.InstaCloneUser.FindAsync(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            var post = await _context.Posts.FindAsync(postId);
+
+            if (user == null || post == null)
+            {
+                return BadRequest();
+            }
+
+            var comment = new Comment
+            {
+                Content = commentRequest.Content,
+                Post = post,
+                InstaCloneUser = user
+            };
+
             _context.Comments.Add(comment);
             await _context.SaveChangesAsync();
 
@@ -88,10 +128,17 @@ namespace instaclone.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteComment(int id)
         {
+            var user = await _context.InstaCloneUser.FindAsync(User.FindFirstValue(ClaimTypes.NameIdentifier));
             var comment = await _context.Comments.FindAsync(id);
-            if (comment == null)
+
+            if (comment == null || user == null)
             {
                 return NotFound();
+            }
+
+            if (!comment.InstaCloneUser.Id.Equals(user.Id))
+            {
+                return Unauthorized();
             }
 
             _context.Comments.Remove(comment);

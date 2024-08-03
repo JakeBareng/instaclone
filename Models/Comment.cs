@@ -12,7 +12,14 @@ namespace instaclone.models
         public DateTime Created { get; set; } = DateTime.UtcNow;
 
 
-        public InstaCloneUser UserDetail { get; set; }
+
+        public string InstaCloneUserId { get; set; }
+        [Required]
+        public InstaCloneUser InstaCloneUser { get; set; }
+
+
+        public int PostId { get; set; }
+        [Required]
         public Post Post { get; set; }
     }
 }
