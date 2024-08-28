@@ -10,6 +10,10 @@ using instaclone.models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using System.Security.Claims;
+using instaclone.Models.DTOs;
+using instaclone.Models.RequestModels;
+using System.Reflection.Metadata;
+using Azure.Storage.Blobs;
 
 namespace instaclone.Controllers
 {
@@ -19,6 +23,7 @@ namespace instaclone.Controllers
     public class PostsController : ControllerBase
     {
         private readonly SocialMediaContext _context;
+        private readonly BlobStorageService _blobStorageService = new BlobStorageService();
 
         public PostsController(SocialMediaContext context)
         {
@@ -27,29 +32,71 @@ namespace instaclone.Controllers
 
         // GET: api/Posts
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Post>>> GetPosts()
+        public async Task<ActionResult<IEnumerable<PostDTO>>> GetPosts()
         {
-            return await _context.Posts.ToListAsync();
+
+            var user = _context.InstaCloneUser.Find(User.FindFirstValue(ClaimTypes.NameIdentifier));
+
+            if (user == null)
+                return NotFound();
+
+            var posts = await _context.Posts
+                .Include(p => p.InstaCloneUser)
+                .Include(p => p.Comments)
+                .Include(p => p.Likes)
+                .ToListAsync();
+               
+            var postDTOs = posts.Select(p => new PostDTO
+            {
+                Id = p.Id,
+                FileAddress = p.FileAddress,
+                Caption = p.Caption,
+                Created = p.Created,
+                InstaCloneUser = new UserMap().mapUser(p.InstaCloneUser),
+                Comments = p.Comments.Select(c => new CommentMap().mapComment(c)).ToList(),
+                Likes = p.Likes.Select(l => new LikeMap().mapLike(l)).ToList()
+            });
+
+            return postDTOs.ToList();
         }
 
         // GET: api/Posts/5
         [HttpGet("{id}")]
-        public async Task<ActionResult<Post>> GetPost(int id)
+        public async Task<ActionResult<PostDTO>> GetPost(int id)
         {
-            var post = await _context.Posts.FindAsync(id);
+            var user = _context.InstaCloneUser.Find(User.FindFirstValue(ClaimTypes.NameIdentifier));
+
+            if (user == null)
+                return NotFound();
+
+
+            var post = await _context.Posts
+                .Include(p => p.InstaCloneUser)
+                .Include(p => p.Comments)
+                .Include(p => p.Likes)
+                .FirstOrDefaultAsync(p => p.Id == id);
 
             if (post == null)
-            {
                 return NotFound();
-            }
 
-            return post;
+            var postDTO = new PostDTO
+            {
+                Id = post.Id,
+                FileAddress = post.FileAddress,
+                Caption = post.Caption,
+                Created = post.Created,
+                InstaCloneUser = new UserMap().mapUser(post.InstaCloneUser),
+                Comments = post.Comments.Select(c => new CommentMap().mapComment(c)).ToList(),
+                Likes = post.Likes.Select(l => new LikeMap().mapLike(l)).ToList()
+            };
+
+            return postDTO;
         }
 
         // PUT: api/Posts/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutPost(int id, PostRequest postRequest)
+        public async Task<IActionResult> PutPost(int id, string caption)
         {
 
             var post = await _context.Posts.FindAsync(id);
@@ -62,9 +109,7 @@ namespace instaclone.Controllers
                 return Unauthorized();
 
 
-            post.Title = postRequest.title;
-            post.FileAddress = postRequest.fileAddress;
-            post.Caption = postRequest.caption;
+            post.Caption = caption;
 
             _context.Entry(post).State = EntityState.Modified;
 
@@ -81,7 +126,7 @@ namespace instaclone.Controllers
                 }
                 else
                 {
-                    throw;
+                    throw new Exception("Error updating post");
                 }
             }
 
@@ -91,21 +136,20 @@ namespace instaclone.Controllers
         // POST: api/Posts
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
-        public async Task<ActionResult<Post>> PostPost(PostRequest postRequest)
+        public async Task<ActionResult<PostDTO>> PostPost([FromForm] PostRequest postRequest)
         {
-            var user = _context.InstaCloneUser.Find(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            var user = await _context.InstaCloneUser.FindAsync(User.FindFirstValue(ClaimTypes.NameIdentifier));
 
             if (user == null)
-            {
-                return BadRequest();
-            }
+                return NotFound("user not found");
+
+            string uri = await _blobStorageService.UploadFileAsync(postRequest.file.OpenReadStream(), postRequest.file.FileName);
+
 
             var post = new Post
             {
                 Caption = postRequest.caption,
-                Comments = new List<Comment>(),
-                FileAddress = postRequest.fileAddress,
-                Title = postRequest.title,
+                FileAddress = uri, 
                 InstaCloneUser = user,
             };
 
@@ -113,7 +157,16 @@ namespace instaclone.Controllers
             _context.Posts.Add(post);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction("GetPost", new { id = post.Id }, post);
+            return CreatedAtAction("GetPost", new { id = post.Id }, new PostDTO
+            {
+                Id = post.Id,
+                FileAddress = post.FileAddress,
+                Caption = post.Caption,
+                Created = post.Created,
+                InstaCloneUser = new UserMap().mapUser(post.InstaCloneUser),
+                Comments = post.Comments.Select(c => new CommentMap().mapComment(c)).ToList(),
+                Likes = post.Likes.Select(l => new LikeMap().mapLike(l)).ToList()
+            });
         }
 
         // DELETE: api/Posts/5

@@ -2,19 +2,32 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using System.Configuration;
 
 namespace instaclone.data;
 public class ApplicationDbContext :  IdentityDbContext<InstaCloneUser>
 {
-    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) :
+    protected readonly IConfiguration Configuration;
+
+    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options, IConfiguration configuration) :
        base(options)
-    { }
+    {
+        Configuration = configuration;
+    }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+
+        builder.Entity<InstaCloneUser>(b =>
+        {
+            b.ToTable("InstaCloneUser");
+        });
     }
 
-    public DbSet<InstaCloneUser> InstaCloneUsers { get; set; }
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        optionsBuilder.UseNpgsql(Configuration.GetConnectionString("API_DB"));
+    }
 
 }

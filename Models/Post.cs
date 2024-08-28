@@ -9,7 +9,6 @@ namespace instaclone.models
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
         public String? FileAddress { get; set; }
-        public String? Title {  get; set; }
         public String? Caption { get; set; }
         public DateTime Created { get; set; } = DateTime.UtcNow;
 

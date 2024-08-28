@@ -9,6 +9,8 @@ using instaclone.Data;
 using instaclone.models;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
+using instaclone.Models.DTOs;
+using instaclone.Models.RequestModels;
 
 namespace instaclone.Controllers
 {
@@ -45,9 +47,22 @@ namespace instaclone.Controllers
         // GET: api/Comments/Post/5
         // Get all comments for a post
         [HttpGet("Post/{id}")]
-        public async Task<ActionResult<IEnumerable<Comment>>> GetCommentsForPost(int id)
+        public async Task<ActionResult<IEnumerable<CommentDTO>>> GetCommentsForPost(int id)
         {
-            return await _context.Comments.Where(c => c.PostId == id).ToListAsync();
+            var post = await _context.Posts.FindAsync(id);
+            if (post == null) return BadRequest("post id does not exists");
+
+
+            return await _context.Comments
+                .Where(c => c.Post.Id == id)
+                .Select(c => new CommentDTO
+                {
+                    Id = c.Id,
+                    Content = c.Content,
+                    InstaCloneUser = new UserMap().mapUser(c.InstaCloneUser),
+                    Created = c.Created
+                })
+                .ToListAsync();
         }
 
 
@@ -99,8 +114,8 @@ namespace instaclone.Controllers
 
         // POST: api/Comments/Post/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPost("Post/{id}")]
-        public async Task<ActionResult<Comment>> PostComment(int postId ,CommentRequest commentRequest)
+        [HttpPost("Post/{postId}")]
+        public async Task<ActionResult<CommentDTO>> PostComment(int postId ,CommentRequest commentRequest)
         {
             
             var user = await _context.InstaCloneUser.FindAsync(User.FindFirstValue(ClaimTypes.NameIdentifier));
@@ -114,14 +129,23 @@ namespace instaclone.Controllers
             var comment = new Comment
             {
                 Content = commentRequest.Content,
+                PostId = post.Id,
                 Post = post,
-                InstaCloneUser = user
+                InstaCloneUserId = user.Id,
+                InstaCloneUser = user,
+                Created = DateTime.UtcNow
             };
 
             _context.Comments.Add(comment);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction("GetComment", new { id = comment.Id }, comment);
+            return new CommentDTO
+            {
+                Id = comment.Id,
+                Content = comment.Content,
+                InstaCloneUser = new UserMap().mapUser(comment.InstaCloneUser),
+                Created = comment.Created
+            };
         }
 
         // DELETE: api/Comments/5
@@ -129,7 +153,7 @@ namespace instaclone.Controllers
         public async Task<IActionResult> DeleteComment(int id)
         {
             var user = await _context.InstaCloneUser.FindAsync(User.FindFirstValue(ClaimTypes.NameIdentifier));
-            var comment = await _context.Comments.FindAsync(id);
+            var comment = await _context.Comments.FirstAsync(c => c.Id == id);
 
             if (comment == null || user == null)
             {

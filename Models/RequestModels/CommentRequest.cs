@@ -1,4 +1,4 @@
-﻿namespace instaclone.Controllers
+﻿namespace instaclone.Models.RequestModels
 {
     public class CommentRequest
     {
