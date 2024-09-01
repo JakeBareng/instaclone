@@ -84,8 +84,14 @@ namespace instaclone.Controllers
             var user = await _context.InstaCloneUser.FindAsync(User.FindFirstValue(ClaimTypes.NameIdentifier));
             var post = await _context.Posts.FindAsync(postId);
 
+
             if (user == null || post == null)
                 return BadRequest();
+
+            var prevLike = post.Likes.Where(l => l.InstaCloneUser == user).First();
+
+            if (prevLike != null)
+                return BadRequest("post has already been liked");
 
             var like = new Like { InstaCloneUser = user, Post = post };
 

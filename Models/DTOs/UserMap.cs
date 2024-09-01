@@ -10,7 +10,7 @@ namespace instaclone.Models.DTOs
             {
                 Id = user.Id,
                 ProfilePicture = user.ProfilePicture,
-                UserCreatedUsername = user.UserName
+                UserCreatedUsername = user.UserCreatedUsername
             };
         }
     }

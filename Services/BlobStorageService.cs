@@ -30,4 +30,10 @@ public class BlobStorageService
         return blobClient.Uri.ToString();
     }
 
+    public void DeleteFile(string filename)
+    {
+        BlobClient blobClient = _containerClient.GetBlobClient(filename);
+        blobClient.DeleteIfExists();
+    }
+
 }

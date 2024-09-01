@@ -32,32 +32,39 @@ namespace instaclone.Controllers
 
         // GET: api/Posts
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<PostDTO>>> GetPosts()
-        {
+        //public async Task<ActionResult<IEnumerable<PostDTO>>> GetPosts()
+        //{
 
-            var user = _context.InstaCloneUser.Find(User.FindFirstValue(ClaimTypes.NameIdentifier));
+        //temp
+        public string GetPosts() { 
 
-            if (user == null)
-                return NotFound();
+            //temp
+            return "test";
 
-            var posts = await _context.Posts
-                .Include(p => p.InstaCloneUser)
-                .Include(p => p.Comments)
-                .Include(p => p.Likes)
-                .ToListAsync();
+
+            //var user = _context.InstaCloneUser.Find(User.FindFirstValue(ClaimTypes.NameIdentifier));
+
+            //if (user == null)
+            //    return NotFound("User does not exist");
+
+            //var posts = await _context.Posts
+            //    .Include(p => p.InstaCloneUser)
+            //    .Include(p => p.Comments)
+            //    .Include(p => p.Likes)
+            //    .ToListAsync();
                
-            var postDTOs = posts.Select(p => new PostDTO
-            {
-                Id = p.Id,
-                FileAddress = p.FileAddress,
-                Caption = p.Caption,
-                Created = p.Created,
-                InstaCloneUser = new UserMap().mapUser(p.InstaCloneUser),
-                Comments = p.Comments.Select(c => new CommentMap().mapComment(c)).ToList(),
-                Likes = p.Likes.Select(l => new LikeMap().mapLike(l)).ToList()
-            });
+            //var postDTOs = posts.Select(p => new PostDTO
+            //{
+            //    Id = p.Id,
+            //    FileAddress = p.FileAddress,
+            //    Caption = p.Caption,
+            //    Created = p.Created,
+            //    InstaCloneUser = new UserMap().mapUser(p.InstaCloneUser),
+            //    Comments = p.Comments.Select(c => new CommentMap().mapComment(c)).ToList(),
+            //    Likes = p.Likes.Select(l => new LikeMap().mapLike(l)).ToList()
+            //});
 
-            return postDTOs.ToList();
+            //return postDTOs.ToList();
         }
 
         // GET: api/Posts/5
@@ -143,7 +150,15 @@ namespace instaclone.Controllers
             if (user == null)
                 return NotFound("user not found");
 
-            string uri = await _blobStorageService.UploadFileAsync(postRequest.file.OpenReadStream(), postRequest.file.FileName);
+
+            long maxSize = 3000000;
+
+            if (postRequest.file.Length > maxSize)
+                return BadRequest("file size is too large");
+
+            string uri = await _blobStorageService.UploadFileAsync(
+                postRequest.file.OpenReadStream(),
+                postRequest.file.FileName);
 
 
             var post = new Post
@@ -181,6 +196,11 @@ namespace instaclone.Controllers
 
             if (!post.InstaCloneUser.Id.Equals(user.Id))
                 return Unauthorized();
+
+
+            string blobname = post.FileAddress;
+            _blobStorageService.DeleteFile(blobname);
+
 
             _context.Posts.Remove(post);
             await _context.SaveChangesAsync();
